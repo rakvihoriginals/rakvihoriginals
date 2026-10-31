@@ -1,0 +1,12 @@
+{
+  "appId": "com.rakvih.originals",
+  "appName": "RAKVIH Originals",
+  "webDir": "capacitor-www",
+  "server": {
+    "url": "https://rakvihoriginals.vercel.app",
+    "errorPath": "offline.html"
+  },
+  "android": {
+    "backgroundColor": "#000000"
+  }
+}

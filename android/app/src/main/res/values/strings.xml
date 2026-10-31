@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">RAKVIH Originals</string>
+    <string name="title_activity_main">RAKVIH Originals</string>
+    <string name="package_name">com.rakvih.originals</string>
+    <string name="custom_url_scheme">com.rakvih.originals</string>
+</resources>
