@@ -361,9 +361,6 @@ export function initScrollSequence(): () => void {
             return new Promise((resolve) => {
                 const img = new Image();
                 img.decoding = 'async';
-                const frameNum = String(index + 1).padStart(3, '0');
-                const framePath = this.config.framePath + frameNum + this.config.frameExt;
-                let usingOriginal = false;
                 let finished = false;
                 const finish = () => {
                     if (finished) return;
@@ -388,7 +385,7 @@ export function initScrollSequence(): () => void {
                         }
                         this.images[index] = img;
                         this.requested[index] = 2;
-                        if (!usingOriginal) this.cached[index] = 1;
+                        this.cached[index] = 1;
                         this.pruneFrames();
                         if (this.drawnIndex < 0) {
                             this.drawFrame(this.lerpedFrame, true);
@@ -404,13 +401,6 @@ export function initScrollSequence(): () => void {
                     }
                 };
                 img.onerror = () => {
-                    // Optimized assets may still be generating locally. The complete
-                    // original sequence keeps playback moving instead of freezing.
-                    if (!usingOriginal && !abort.signal.aborted) {
-                        usingOriginal = true;
-                        img.src = '/' + framePath;
-                        return;
-                    }
                     this.requested[index] = 3;
                     finish();
                 };

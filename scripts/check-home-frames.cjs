@@ -9,7 +9,7 @@ source = source.slice(0, source.indexOf('    // ─── BOOT')) + `
 return { ScrollSequence, pumpLoader, sequences, dispose() { abort.abort(); cleanups.forEach(fn => fn()); } }; }
 engine = initScrollSequence();`;
 const tick = () => new Promise(resolve => setImmediate(resolve));
-async function check(mobile = false, reduced = false, missingOptimized = false) {
+async function check(mobile = false, reduced = false) {
   let active = 0, peakActive = 0, requests = 0, draws = 0;
   const pending = [];
   const container = { getBoundingClientRect: () => ({ top: 0, height: 10000 }), offsetHeight: 10000 };
@@ -24,10 +24,7 @@ async function check(mobile = false, reduced = false, missingOptimized = false) 
       set src(value) {
         this.url = value; requests++; active++; peakActive = Math.max(active, peakActive);
         pending.push(() => {
-          if (missingOptimized && value.startsWith('/home-frames/')) {
-            active--;
-            if (this.onerror) this.onerror();
-          } else if (this.onload) this.onload();
+          if (this.onload) this.onload();
         });
       }
       get src() { return this.url; }
@@ -72,7 +69,7 @@ async function check(mobile = false, reduced = false, missingOptimized = false) 
     }
   }
   await drain();
-  assert.equal(requests, missingOptimized ? 2 : 1, 'only main poster loads before visibility, with original fallback if needed');
+  assert.equal(requests, 1, 'only main poster loads before visibility');
   for (const seq of sequences) {
     seq.isNear = seq.isVisible = true;
     seq.startLoading();
@@ -134,6 +131,6 @@ async function check(mobile = false, reduced = false, missingOptimized = false) 
   await drain();
   assert.equal(draws, beforeDispose, 'no rendering after disposal');
   assert.ok(sequences.every(seq => seq.images.filter(Boolean).length === 0), 'unmount releases all images');
-  console.log(`PASS ${mobile ? 'mobile' : 'desktop'}${reduced ? ' reduced motion' : ''}${missingOptimized ? ' missing optimized assets' : ''}: bounded memory/concurrency, forward/reverse/jumps, idle, hidden, cleanup`);
+  console.log(`PASS ${mobile ? 'mobile' : 'desktop'}${reduced ? ' reduced motion' : ''}: bounded memory/concurrency, forward/reverse/jumps, idle, hidden, cleanup`);
 }
-(async () => { await check(); await check(true); await check(false, true); await check(false, false, true); })().catch(error => { console.error(error); process.exitCode = 1; });
+(async () => { await check(); await check(true); await check(false, true); })().catch(error => { console.error(error); process.exitCode = 1; });
