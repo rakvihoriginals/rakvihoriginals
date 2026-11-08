@@ -48,6 +48,7 @@ export interface Order {
   status: string;
   order_date: string;
   email: string;
+  payment_proof_url?: string | null;
   payment_rejection_reason?: string | null;
   stock_restored?: boolean;
   coupon_code?: string | null;
@@ -157,18 +158,41 @@ export default function AdminOrdersPage() {
   const handleUpdatePaymentStatus = async (orderId: string, newPaymentStatus: string) => {
     setIsUpdatingStatus(orderId);
     try {
+      const changes = newPaymentStatus === "paid"
+        ? { payment_status: newPaymentStatus, status: "confirmed" }
+        : { payment_status: newPaymentStatus };
       const { error: updateErr } = await supabase
         .from(ORDERS_TABLE)
-        .update({ payment_status: newPaymentStatus })
+        .update(changes)
         .eq("id", orderId);
 
       if (updateErr) throw new Error(updateErr.message);
 
       setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, payment_status: newPaymentStatus } : o))
+        prev.map((o) => (o.id === orderId ? { ...o, ...changes } : o))
       );
     } catch (err: any) {
       alert("Failed to update payment status: " + err.message);
+    } finally {
+      setIsUpdatingStatus(null);
+    }
+  };
+
+  const handleReviewPaymentProof = async (orderId: string, approved: boolean) => {
+    setIsUpdatingStatus(orderId);
+    const changes = approved
+      ? { payment_status: "paid", status: "confirmed" }
+      : { payment_status: "failed" };
+    try {
+      const { error: updateErr } = await supabase
+        .from(ORDERS_TABLE)
+        .update(changes)
+        .eq("id", orderId);
+      if (updateErr) throw new Error(updateErr.message);
+
+      setOrders((previous) => previous.map((order) => order.id === orderId ? { ...order, ...changes } : order));
+    } catch (err: any) {
+      alert(`Could not ${approved ? "confirm" : "reject"} payment proof: ${err.message}`);
     } finally {
       setIsUpdatingStatus(null);
     }
@@ -236,7 +260,7 @@ export default function AdminOrdersPage() {
   }, [orders]);
 
   return (
-    <div className="subpage-wrapper brand-directory-admin">
+    <div className="subpage-wrapper brand-directory-admin admin-orders-page">
       {/* Hero (Same structure as Category Setup) */}
       <section className="subpage-hero">
         <div className="subpage-hero-inner">
@@ -502,6 +526,7 @@ export default function AdminOrdersPage() {
                           </span>
 
                           <button
+                            className="admin-order-invoice-btn"
                             type="button"
                             title="Download Official Tax Invoice PDF"
                             onClick={(e) => {
@@ -634,6 +659,43 @@ export default function AdminOrdersPage() {
                             </button>
                           </div>
                         </div>
+
+                        {order.payment_proof_url && (
+                          <div className="admin-payment-proof">
+                            <a className="admin-payment-proof-image" href={order.payment_proof_url} target="_blank" rel="noreferrer" aria-label={`Open UPI payment proof for order ${order.id}`}>
+                              <img
+                                src={order.payment_proof_url}
+                                alt={`UPI payment proof for order ${order.id}`}
+                              />
+                            </a>
+                            <div className="admin-payment-proof-details">
+                              <strong style={{ color: "var(--color-gold)", fontSize: "0.82rem" }}>UPI payment proof</strong>
+                              <a href={order.payment_proof_url} target="_blank" rel="noreferrer" style={{ color: "#fff", fontSize: "0.75rem", textDecoration: "underline" }}>
+                                Open full image
+                              </a>
+                              {order.payment_status?.toLowerCase() === "pending" && (
+                                <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", marginTop: "0.3rem" }}>
+                                  <button
+                                    type="button"
+                                    disabled={isUpdatingStatus === order.id}
+                                    onClick={() => handleReviewPaymentProof(order.id, true)}
+                                    style={{ border: "1px solid rgba(16,185,129,0.5)", borderRadius: "7px", padding: "0.5rem 0.75rem", background: "rgba(16,185,129,0.12)", color: "#6ee7b7", fontWeight: 700, cursor: "pointer" }}
+                                  >
+                                    {isUpdatingStatus === order.id ? "Saving..." : "Verify & Confirm Order"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={isUpdatingStatus === order.id}
+                                    onClick={() => handleReviewPaymentProof(order.id, false)}
+                                    style={{ border: "1px solid rgba(239,68,68,0.4)", borderRadius: "7px", padding: "0.5rem 0.75rem", background: "rgba(239,68,68,0.1)", color: "#fca5a5", fontWeight: 700, cursor: "pointer" }}
+                                  >
+                                    Reject Proof
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Customer & Shipping Summary */}
                         <div

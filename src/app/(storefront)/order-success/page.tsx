@@ -64,7 +64,11 @@ function OrderSuccessContent() {
         </div>
 
         <span className="brand-gold-badge" style={{ marginBottom: "1rem" }}>
-          Order Confirmed & Secured
+          {order?.payment_status?.toLowerCase() === "paid"
+            ? "Payment Verified"
+            : order?.payment_proof_url
+              ? "Payment Proof Submitted"
+              : "Order Received"}
         </span>
 
         <h1 style={{ fontFamily: "var(--font-display)", fontSize: "2.4rem", color: "#ffffff", marginBottom: "0.5rem" }}>
@@ -72,7 +76,9 @@ function OrderSuccessContent() {
         </h1>
 
         <p style={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "0.92rem", lineHeight: 1.6, marginBottom: "2rem" }}>
-          Your bespoke luxury order has been registered in the Maison ledger. Our atelier artisans are preparing your complimentary signature presentation box.
+          {order?.payment_status?.toLowerCase() === "paid"
+            ? "Your payment has been verified and your order is confirmed. Our atelier team will prepare your order for dispatch."
+            : "Your order and payment screenshot have been received. An admin will verify the UPI payment and confirm your order."}
         </p>
 
         {/* Order Details Card */}
@@ -91,8 +97,8 @@ function OrderSuccessContent() {
               <span style={{ fontSize: "0.7rem", color: "rgba(255, 255, 255, 0.5)", textTransform: "uppercase", letterSpacing: "0.1em", display: "block" }}>
                 Status
               </span>
-              <span style={{ color: "#2ecc71", fontWeight: 700, fontSize: "0.85rem" }}>
-                ● Confirmed & Dispatched Soon
+                <span style={{ color: order?.payment_status?.toLowerCase() === "paid" ? "#2ecc71" : "var(--color-gold)", fontWeight: 700, fontSize: "0.85rem" }}>
+                  ● {order?.payment_status?.toLowerCase() === "paid" ? "Paid — Order Confirmed" : "Awaiting Payment"}
               </span>
             </div>
           </div>
@@ -130,7 +136,7 @@ function OrderSuccessContent() {
 
               {/* Grand Total */}
               <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid rgba(255, 255, 255, 0.08)", paddingTop: "0.85rem", fontSize: "1.1rem", fontWeight: 800, color: "#ffffff" }}>
-                <span>Grand Total Settled</span>
+                <span>{order?.payment_status?.toLowerCase() === "paid" ? "Grand Total Settled" : "Grand Total Due"}</span>
                 <span style={{ color: "var(--color-gold)", fontFamily: "var(--font-heading)" }}>
                   {formatINR(order.grand_total)}
                 </span>

@@ -9734,6 +9734,143 @@ html.rk-intro-active, html.rk-intro-active body { overflow: hidden !important; }
     margin-bottom: 1.25rem;
 }
 
+.admin-payment-proof {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: start;
+    width: 100%;
+    max-width: 540px;
+    border: 1px solid rgba(196, 161, 116, 0.25);
+    border-radius: 12px;
+    padding: 0.75rem;
+    background: rgba(196, 161, 116, 0.04);
+}
+
+.admin-payment-proof-image {
+    display: block;
+    width: 150px;
+    max-width: 100%;
+    border-radius: 8px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.admin-payment-proof-image img {
+    display: block;
+    width: 100%;
+    max-height: 220px;
+    object-fit: contain;
+}
+
+.admin-payment-proof-details {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.65rem;
+    align-items: flex-start;
+    overflow-wrap: anywhere;
+}
+
+/* The orders screen lives inside the admin shell, so don't apply the extra
+   storefront page offset and nested container gutters here. */
+.admin-orders-page {
+    padding-top: 0;
+    min-height: auto;
+}
+
+.admin-orders-page .subpage-hero {
+    padding: 0 0 1.25rem;
+    background: transparent;
+}
+
+.admin-orders-page .subpage-hero-inner,
+.admin-orders-page .subpage-container {
+    max-width: none;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.admin-orders-page .subpage-grid-section {
+    padding: 1rem 0 0;
+}
+
+@media (max-width: 480px) {
+    .admin-payment-proof {
+        grid-template-columns: 112px minmax(0, 1fr);
+        gap: 0.6rem;
+        padding: 0.6rem;
+    }
+
+    .admin-payment-proof-image {
+        width: 112px;
+    }
+}
+
+@media (max-width: 640px) {
+    .admin-orders-page .cat-tree-search {
+        flex: 0 1 auto !important;
+        width: 100%;
+    }
+
+    .admin-orders-page .cat-node-row {
+        align-items: flex-start;
+        gap: 0.65rem;
+        padding: 0.75rem;
+    }
+
+    .admin-orders-page .cat-node-body {
+        min-width: 0;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        gap: 0.45rem;
+    }
+
+    .admin-orders-page .cat-node-body > div:first-child {
+        min-width: 0;
+    }
+
+    .admin-orders-page .cat-node-name {
+        max-width: 100%;
+        white-space: normal;
+        font-size: 1rem;
+        line-height: 1.2;
+    }
+
+    .admin-orders-page .cat-node-meta {
+        width: 100%;
+        min-width: 0;
+        flex-wrap: wrap;
+        flex-shrink: 1;
+        gap: 0.35rem;
+    }
+
+    .admin-orders-page .admin-order-invoice-btn {
+        margin-left: 0 !important;
+    }
+
+    .admin-orders-page .cat-node-children > div {
+        padding: 0.75rem !important;
+    }
+
+    .admin-orders-page .subcat-list {
+        padding: 0 0.5rem 0.5rem;
+    }
+
+    .admin-orders-page .subcat-node-row {
+        gap: 0.5rem;
+        padding: 0.7rem 0.25rem;
+        flex-wrap: wrap;
+    }
+
+    .admin-orders-page .subcat-node-meta {
+        flex-wrap: wrap;
+        flex-shrink: 1;
+        gap: 0.35rem;
+    }
+}
+
 .subpage-title.checkout-title {
     font-size: clamp(1.9rem, 6vw, 2.4rem);
 }

@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { formatINR } from "@/lib/fetchProducts";
-import { supabase } from "@/lib/supabase";
 import { supabaseImageUrl } from "@/lib/imageUrl";
 
 const INDIAN_STATES = [
@@ -15,6 +14,7 @@ const INDIAN_STATES = [
   "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura",
   "Uttar Pradesh", "Uttarakhand", "West Bengal", "Delhi NCR", "Chandigarh"
 ];
+const UPI_ID = "8553902047@ybl";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -31,12 +31,23 @@ export default function CheckoutPage() {
   const [state, setState] = useState("Karnataka");
   const [pincode, setPincode] = useState("");
 
-  // Payment method
-  const [paymentMethod, setPaymentMethod] = useState<"UPI" | "Bank Transfer" | "Cash on Delivery" | "Card">("UPI");
+  const [paymentProof, setPaymentProof] = useState<File | null>(null);
+  const [paymentProofPreview, setPaymentProofPreview] = useState("");
+  const [upiCopied, setUpiCopied] = useState(false);
 
   // Submit state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!paymentProof) {
+      setPaymentProofPreview("");
+      return;
+    }
+    const previewUrl = URL.createObjectURL(paymentProof);
+    setPaymentProofPreview(previewUrl);
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [paymentProof]);
 
   if (isLoading) {
     return (
@@ -97,13 +108,17 @@ export default function CheckoutPage() {
     );
   }
 
-  // Submit Order
+// Submit Order
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
 
-    if (!fullName.trim() || !phoneNumber.trim() || !houseNumber.trim() || !street.trim() || !city.trim() || !pincode.trim()) {
+    if (!fullName.trim() || !email.trim() || !phoneNumber.trim() || !houseNumber.trim() || !street.trim() || !city.trim() || !pincode.trim()) {
       setSubmitError("Please fill in all mandatory delivery address fields.");
+      return;
+    }
+    if (!paymentProof) {
+      setSubmitError("Upload your UPI payment screenshot so our team can verify the transfer.");
       return;
     }
 
@@ -111,60 +126,34 @@ export default function CheckoutPage() {
 
     try {
       const cartItemsPayload = cart.map((item) => ({
-        id: item.product.id,
-        name: item.product.name,
-        image: item.product.img,
-        price: item.variant?.salePrice || item.variant?.price || item.product.priceValue,
-        originalPrice: item.product.originalPriceValue || item.product.priceValue,
         quantity: item.quantity,
         productId: item.product.id,
         variationId: item.variant?.id || null,
         variationName: item.variant?.sizeName || "",
       }));
 
-      const newOrder = {
-        user_id: user?.id || null,
-        full_name: fullName.trim(),
-        phone_number: phoneNumber.trim(),
-        alt_phone_number: altPhoneNumber.trim() || "",
-        house_number: houseNumber.trim(),
-        street: street.trim(),
-        city: city.trim(),
-        state: state.trim(),
-        pincode: pincode.trim(),
-        payment_method: paymentMethod,
-        payment_id: `RAKVIH-${Date.now()}`,
-        payment_status: paymentMethod === "Cash on Delivery" ? "pending" : "paid",
-        total_price: cartSubtotal,
-        shipping_cost: 0,
-        grand_total: cartSubtotal,
-        cart_items: cartItemsPayload,
-        status: "confirmed",
-        order_date: new Date().toISOString(),
-        email: email.trim() || user?.email || "",
-      };
+      const formData = new FormData();
+      formData.set("userId", user?.id || "");
+      formData.set("fullName", fullName.trim());
+      formData.set("email", email.trim() || user?.email || "");
+      formData.set("phoneNumber", phoneNumber.trim());
+      formData.set("altPhoneNumber", altPhoneNumber.trim());
+      formData.set("houseNumber", houseNumber.trim());
+      formData.set("street", street.trim());
+      formData.set("city", city.trim());
+      formData.set("state", state.trim());
+      formData.set("pincode", pincode.trim());
+      formData.set("items", JSON.stringify(cartItemsPayload));
+      formData.set("paymentProof", paymentProof);
 
-      const { data: insertedData, error: insertError } = await supabase
-        .from("Rakvih_orders")
-        .insert([newOrder])
-        .select("id")
-        .single();
-
-      if (insertError) {
-        console.error("Order insertion error:", insertError);
-        // Fallback with client UUID if DB trigger restricted
-        const generatedId = `RAK-${Math.floor(100000 + Math.random() * 900000)}`;
-        clearCart();
-        router.push(`/order-success?orderId=${generatedId}`);
-        return;
-      }
-
+      const response = await fetch("/api/checkout/create-order", { method: "POST", body: formData });
+      const orderResult = await response.json();
+      if (!response.ok) throw new Error(orderResult.error || "Unable to place the order.");
       clearCart();
-      const orderId = insertedData?.id || `RAK-${Date.now()}`;
-      router.push(`/order-success?orderId=${orderId}`);
-    } catch (err: any) {
+      router.push(`/order-success?orderId=${orderResult.orderId}`);
+    } catch (err: unknown) {
       console.error("Order placement exception:", err);
-      setSubmitError(err.message || "An unexpected error occurred while placing the order.");
+      setSubmitError(err instanceof Error ? err.message : "An unexpected error occurred while placing the order.");
       setIsSubmitting(false);
     }
   };
@@ -360,108 +349,79 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {/* Step 2: Payment Method */}
+              {/* Step 2: UPI Payment and Proof */}
               <div className="auth-card-wrap">
                 <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "1.5rem", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", paddingBottom: "0.75rem" }}>
                   <span className="brand-gold-badge">02</span>
                   <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.4rem", color: "#ffffff", margin: 0 }}>
-                    Payment & Settlement
+                    Pay by UPI
                   </h3>
                 </div>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                  {/* UPI */}
-                  <label
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.85rem",
-                      background: paymentMethod === "UPI" ? "rgba(196, 161, 116, 0.12)" : "rgba(255, 255, 255, 0.03)",
-                      border: paymentMethod === "UPI" ? "1px solid var(--color-gold)" : "1px solid rgba(255, 255, 255, 0.08)",
-                      borderRadius: "14px",
-                      padding: "1rem 1.25rem",
-                      cursor: "pointer",
-                      transition: "all 0.25s ease",
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      name="payment"
-                      checked={paymentMethod === "UPI"}
-                      onChange={() => setPaymentMethod("UPI")}
-                      style={{ accentColor: "var(--color-gold)", flexShrink: 0, width: "18px", height: "18px" }}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 230px), 1fr))", gap: "1.25rem", alignItems: "stretch", minWidth: 0 }}>
+                  <div style={{ minWidth: 0, border: "1px solid rgba(255,255,255,0.1)", borderRadius: "14px", padding: "1.25rem", textAlign: "center", background: "rgba(255,255,255,0.025)" }}>
+                    <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.82rem", margin: "0 0 0.9rem" }}>
+                      Scan this PhonePe QR to pay <strong style={{ color: "var(--color-gold)" }}>{formatINR(cartSubtotal)}</strong>
+                    </p>
+                    <img
+                      src="/upi-payment-qr.png"
+                      alt="PhonePe UPI payment QR code"
+                      style={{ display: "block", width: "min(100%, 250px)", maxWidth: "100%", aspectRatio: "1 / 1", objectFit: "contain", background: "#ffffff", borderRadius: "10px", padding: "8px", margin: "0 auto" }}
                     />
-                    <div>
-                      <span style={{ fontFamily: "var(--font-heading)", fontWeight: 700, color: "#ffffff", fontSize: "0.95rem", display: "block" }}>
-                        Instant UPI / QR Code Transfer (Recommended)
-                      </span>
-                      <span style={{ fontSize: "0.75rem", color: "rgba(255, 255, 255, 0.5)" }}>
-                        Google Pay, PhonePe, Paytm, or BHIM UPI instant processing.
-                      </span>
+                    <div style={{ marginTop: "0.9rem", color: "#ffffff", fontWeight: 700, letterSpacing: "0.03em" }}>
+                      UPI ID: <span style={{ color: "var(--color-gold)" }}>{UPI_ID}</span>
                     </div>
-                  </label>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(UPI_ID);
+                          setUpiCopied(true);
+                          window.setTimeout(() => setUpiCopied(false), 1800);
+                        } catch {
+                          setSubmitError("Copy is unavailable here. Please enter the UPI ID manually.");
+                        }
+                      }}
+                      style={{ marginTop: "0.7rem", padding: "0.45rem 0.8rem", borderRadius: "8px", border: "1px solid rgba(196,161,116,0.4)", background: "rgba(196,161,116,0.1)", color: "var(--color-gold)", cursor: "pointer", fontWeight: 700 }}
+                    >
+                      {upiCopied ? "UPI ID Copied" : "Copy UPI ID"}
+                    </button>
+                  </div>
 
-                  {/* Bank Transfer */}
-                  <label
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.85rem",
-                      background: paymentMethod === "Bank Transfer" ? "rgba(196, 161, 116, 0.12)" : "rgba(255, 255, 255, 0.03)",
-                      border: paymentMethod === "Bank Transfer" ? "1px solid var(--color-gold)" : "1px solid rgba(255, 255, 255, 0.08)",
-                      borderRadius: "14px",
-                      padding: "1rem 1.25rem",
-                      cursor: "pointer",
-                      transition: "all 0.25s ease",
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      name="payment"
-                      checked={paymentMethod === "Bank Transfer"}
-                      onChange={() => setPaymentMethod("Bank Transfer")}
-                      style={{ accentColor: "var(--color-gold)", flexShrink: 0, width: "18px", height: "18px" }}
-                    />
-                    <div>
-                      <span style={{ fontFamily: "var(--font-heading)", fontWeight: 700, color: "#ffffff", fontSize: "0.95rem", display: "block" }}>
-                        Direct IMPS / NEFT Bank Transfer
-                      </span>
-                      <span style={{ fontSize: "0.75rem", color: "rgba(255, 255, 255, 0.5)" }}>
-                        Official RAKVIH Originals Maison Escrow account settlement.
-                      </span>
-                    </div>
-                  </label>
-
-                  {/* Cash on Delivery */}
-                  <label
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.85rem",
-                      background: paymentMethod === "Cash on Delivery" ? "rgba(196, 161, 116, 0.12)" : "rgba(255, 255, 255, 0.03)",
-                      border: paymentMethod === "Cash on Delivery" ? "1px solid var(--color-gold)" : "1px solid rgba(255, 255, 255, 0.08)",
-                      borderRadius: "14px",
-                      padding: "1rem 1.25rem",
-                      cursor: "pointer",
-                      transition: "all 0.25s ease",
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      name="payment"
-                      checked={paymentMethod === "Cash on Delivery"}
-                      onChange={() => setPaymentMethod("Cash on Delivery")}
-                      style={{ accentColor: "var(--color-gold)", flexShrink: 0, width: "18px", height: "18px" }}
-                    />
-                    <div>
-                      <span style={{ fontFamily: "var(--font-heading)", fontWeight: 700, color: "#ffffff", fontSize: "0.95rem", display: "block" }}>
-                        Cash On Delivery (Verified VIP Delivery)
-                      </span>
-                      <span style={{ fontSize: "0.75rem", color: "rgba(255, 255, 255, 0.5)" }}>
-                        Pay upon physical inspection by our armored courier escort.
-                      </span>
-                    </div>
-                  </label>
+                  <div style={{ minWidth: 0, border: "1px solid rgba(255,255,255,0.1)", borderRadius: "14px", padding: "1.25rem", background: "rgba(255,255,255,0.025)" }}>
+                    <h4 style={{ color: "#ffffff", margin: "0 0 0.5rem", fontFamily: "var(--font-heading)" }}>Upload payment screenshot</h4>
+                    <p style={{ color: "rgba(255,255,255,0.55)", fontSize: "0.78rem", lineHeight: 1.5, margin: "0 0 1rem" }}>
+                      After paying, upload the success screen or receipt. Your order will stay pending until an admin verifies it.
+                    </p>
+                    <label style={{ minHeight: "150px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.7rem", border: "1px dashed rgba(196,161,116,0.55)", borderRadius: "12px", padding: "1rem", cursor: "pointer", textAlign: "center", background: "rgba(196,161,116,0.04)" }}>
+                      {paymentProofPreview ? (
+                        <img src={paymentProofPreview} alt="Payment proof preview" style={{ maxWidth: "100%", maxHeight: "190px", borderRadius: "8px", objectFit: "contain" }} />
+                      ) : (
+                        <>
+                          <span style={{ color: "var(--color-gold)", fontSize: "1.8rem" }}>＋</span>
+                          <span style={{ color: "#ffffff", fontWeight: 700, fontSize: "0.85rem" }}>Choose screenshot or photo</span>
+                          <span style={{ color: "rgba(255,255,255,0.45)", fontSize: "0.72rem" }}>JPG, PNG, or WebP · up to 5 MB</span>
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0] || null;
+                          if (file && file.size > 5 * 1024 * 1024) {
+                            setSubmitError("Payment screenshot must be 5 MB or smaller.");
+                            setPaymentProof(null);
+                            event.target.value = "";
+                            return;
+                          }
+                          setSubmitError(null);
+                          setPaymentProof(file);
+                        }}
+                        style={{ display: "none" }}
+                      />
+                    </label>
+                    {paymentProof && <p style={{ color: "#b8d9b8", fontSize: "0.75rem", margin: "0.65rem 0 0" }}>Ready to upload: {paymentProof.name}</p>}
+                  </div>
                 </div>
               </div>
             </div>
@@ -537,7 +497,9 @@ export default function CheckoutPage() {
                     boxShadow: "0 10px 30px rgba(196, 161, 116, 0.35)",
                   }}
                 >
-                  {isSubmitting ? "Securing VIP Order..." : `Place Luxury Order (${formatINR(cartSubtotal)})`}
+                  {isSubmitting
+                    ? "Submitting Payment Proof..."
+                    : `Submit Order for Verification (${formatINR(cartSubtotal)})`}
                 </button>
               </div>
 
