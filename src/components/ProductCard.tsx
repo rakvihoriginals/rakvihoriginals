@@ -9,9 +9,10 @@ import AuthModal from "@/components/AuthModal";
 
 interface ProductCardProps {
   product: StoreProduct;
+  priority?: boolean;
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, priority = false }: ProductCardProps) {
   const { isAuthenticated, toggleWishlist, isInWishlist, addToCart } = useAuth();
   const [cartAdded, setCartAdded] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
@@ -73,7 +74,7 @@ export function ProductCard({ product }: ProductCardProps) {
           {product.tag && <span className="gender-tag-badge">{product.tag}</span>}
         </div>
         <Link href={`/product/${product.id}`} className="product-image-pedestal">
-          <OptimizedImage src={product.img} alt={product.name} className="product-main-img" fill sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw" />
+          <OptimizedImage src={product.img} alt={product.name} className="product-main-img" fill priority={priority} sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw" />
         </Link>
       </div>
       <div className="product-meta-details">
