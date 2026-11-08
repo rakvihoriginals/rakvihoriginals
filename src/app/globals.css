@@ -5944,6 +5944,7 @@ ul {
     .pdp-gallery-container {
         position: static !important;
         top: auto !important;
+        overflow: hidden;
     }
 }
 
@@ -5958,12 +5959,15 @@ ul {
     .pdp-gallery-container {
         position: static !important;
         gap: 0.75rem;
+        overflow: hidden;
     }
     .pdp-main-image-wrap {
         padding: 1.25rem;
         border-radius: 1.25rem;
         aspect-ratio: 1 / 1;
-        max-height: 400px;
+        max-height: 70vh;
+        width: 100%;
+        overflow: hidden;
     }
     .pdp-thumbnails-strip {
         gap: 0.5rem;
@@ -6100,6 +6104,9 @@ ul {
 .pdp-info-column {
     display: flex;
     flex-direction: column;
+    position: relative;
+    z-index: 1;
+    overflow: hidden;
 }
 
 .pdp-badges-row {
@@ -9325,7 +9332,7 @@ ul {
 .product-image-pedestal {
   position: relative;
   width: 100%;
-  aspect-ratio: 4 / 5; /* Adjust ratio if you prefer taller or square cards */
+  height: 100%;
   background-color: #121212; /* Dark luxury padding backdrop */
   display: flex;
   align-items: center;
