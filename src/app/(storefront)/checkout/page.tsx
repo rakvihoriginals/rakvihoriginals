@@ -182,7 +182,7 @@ export default function CheckoutPage() {
             <div className="accent-bar"></div>
             <span className="accent-label">Private Order Vault</span>
           </div>
-          <h1 className="subpage-title" style={{ fontSize: "2.4rem" }}>
+          <h1 className="subpage-title checkout-title">
             EXPRESS <span className="hero-title-stroke">CHECKOUT</span>
           </h1>
         </div>
@@ -191,9 +191,9 @@ export default function CheckoutPage() {
       {/* Main Checkout Section */}
       <section style={{ padding: "2rem 0 6rem 0" }}>
         <div className="subpage-container">
-          <form onSubmit={handlePlaceOrder} style={{ display: "grid", gridTemplateColumns: "1.45fr 1fr", gap: "3.5rem", alignItems: "start" }}>
+          <form onSubmit={handlePlaceOrder} className="checkout-layout">
             {/* Left Column: Delivery Details & Payment */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "2.5rem" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "2.5rem", minWidth: 0 }}>
               {/* Error Notification */}
               {submitError && (
                 <div style={{ background: "rgba(231, 76, 60, 0.15)", border: "1px solid rgba(231, 76, 60, 0.4)", color: "#e74c3c", padding: "1rem 1.25rem", borderRadius: "12px", fontSize: "0.85rem" }}>
@@ -210,7 +210,7 @@ export default function CheckoutPage() {
                   </h3>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem" }}>
+                <div className="checkout-fields-grid">
                   <div>
                     <label style={{ display: "block", fontSize: "0.72rem", fontFamily: "var(--font-heading)", letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--color-gold)", marginBottom: "0.4rem", fontWeight: 700 }}>
                       Full Name *
@@ -220,6 +220,7 @@ export default function CheckoutPage() {
                       required
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
+                      autoComplete="name"
                       placeholder="e.g. Purvi Sharma"
                       className="filter-input-glass"
                       style={{ width: "100%", borderRadius: "10px", padding: "0.8rem 1rem" }}
@@ -235,6 +236,7 @@ export default function CheckoutPage() {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
+                      autoComplete="email"
                       placeholder="name@example.com"
                       className="filter-input-glass"
                       style={{ width: "100%", borderRadius: "10px", padding: "0.8rem 1rem" }}
@@ -250,6 +252,7 @@ export default function CheckoutPage() {
                       required
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
+                      autoComplete="tel"
                       placeholder="+91 98200 00000"
                       className="filter-input-glass"
                       style={{ width: "100%", borderRadius: "10px", padding: "0.8rem 1rem" }}
@@ -264,6 +267,7 @@ export default function CheckoutPage() {
                       type="tel"
                       value={altPhoneNumber}
                       onChange={(e) => setAltPhoneNumber(e.target.value)}
+                      autoComplete="tel"
                       placeholder="+91 80000 00000"
                       className="filter-input-glass"
                       style={{ width: "100%", borderRadius: "10px", padding: "0.8rem 1rem" }}
@@ -279,6 +283,7 @@ export default function CheckoutPage() {
                       required
                       value={houseNumber}
                       onChange={(e) => setHouseNumber(e.target.value)}
+                      autoComplete="address-line1"
                       placeholder="e.g. Penthouse 4B, Signature Horizon"
                       className="filter-input-glass"
                       style={{ width: "100%", borderRadius: "10px", padding: "0.8rem 1rem" }}
@@ -294,6 +299,7 @@ export default function CheckoutPage() {
                       required
                       value={street}
                       onChange={(e) => setStreet(e.target.value)}
+                      autoComplete="address-line2"
                       placeholder="e.g. 100ft Road, Near Luxury Boulevard, Indiranagar"
                       className="filter-input-glass"
                       style={{ width: "100%", borderRadius: "10px", padding: "0.8rem 1rem" }}
@@ -309,6 +315,7 @@ export default function CheckoutPage() {
                       required
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
+                      autoComplete="address-level2"
                       placeholder="e.g. Bangalore"
                       className="filter-input-glass"
                       style={{ width: "100%", borderRadius: "10px", padding: "0.8rem 1rem" }}
@@ -343,6 +350,8 @@ export default function CheckoutPage() {
                       maxLength={6}
                       value={pincode}
                       onChange={(e) => setPincode(e.target.value)}
+                      autoComplete="postal-code"
+                      inputMode="numeric"
                       placeholder="e.g. 560038"
                       className="filter-input-glass"
                       style={{ width: "100%", borderRadius: "10px", padding: "0.8rem 1rem" }}
@@ -366,7 +375,7 @@ export default function CheckoutPage() {
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: "1rem",
+                      gap: "0.85rem",
                       background: paymentMethod === "UPI" ? "rgba(196, 161, 116, 0.12)" : "rgba(255, 255, 255, 0.03)",
                       border: paymentMethod === "UPI" ? "1px solid var(--color-gold)" : "1px solid rgba(255, 255, 255, 0.08)",
                       borderRadius: "14px",
@@ -380,7 +389,7 @@ export default function CheckoutPage() {
                       name="payment"
                       checked={paymentMethod === "UPI"}
                       onChange={() => setPaymentMethod("UPI")}
-                      style={{ accentColor: "var(--color-gold)" }}
+                      style={{ accentColor: "var(--color-gold)", flexShrink: 0, width: "18px", height: "18px" }}
                     />
                     <div>
                       <span style={{ fontFamily: "var(--font-heading)", fontWeight: 700, color: "#ffffff", fontSize: "0.95rem", display: "block" }}>
@@ -397,7 +406,7 @@ export default function CheckoutPage() {
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: "1rem",
+                      gap: "0.85rem",
                       background: paymentMethod === "Bank Transfer" ? "rgba(196, 161, 116, 0.12)" : "rgba(255, 255, 255, 0.03)",
                       border: paymentMethod === "Bank Transfer" ? "1px solid var(--color-gold)" : "1px solid rgba(255, 255, 255, 0.08)",
                       borderRadius: "14px",
@@ -411,7 +420,7 @@ export default function CheckoutPage() {
                       name="payment"
                       checked={paymentMethod === "Bank Transfer"}
                       onChange={() => setPaymentMethod("Bank Transfer")}
-                      style={{ accentColor: "var(--color-gold)" }}
+                      style={{ accentColor: "var(--color-gold)", flexShrink: 0, width: "18px", height: "18px" }}
                     />
                     <div>
                       <span style={{ fontFamily: "var(--font-heading)", fontWeight: 700, color: "#ffffff", fontSize: "0.95rem", display: "block" }}>
@@ -428,7 +437,7 @@ export default function CheckoutPage() {
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: "1rem",
+                      gap: "0.85rem",
                       background: paymentMethod === "Cash on Delivery" ? "rgba(196, 161, 116, 0.12)" : "rgba(255, 255, 255, 0.03)",
                       border: paymentMethod === "Cash on Delivery" ? "1px solid var(--color-gold)" : "1px solid rgba(255, 255, 255, 0.08)",
                       borderRadius: "14px",
@@ -442,7 +451,7 @@ export default function CheckoutPage() {
                       name="payment"
                       checked={paymentMethod === "Cash on Delivery"}
                       onChange={() => setPaymentMethod("Cash on Delivery")}
-                      style={{ accentColor: "var(--color-gold)" }}
+                      style={{ accentColor: "var(--color-gold)", flexShrink: 0, width: "18px", height: "18px" }}
                     />
                     <div>
                       <span style={{ fontFamily: "var(--font-heading)", fontWeight: 700, color: "#ffffff", fontSize: "0.95rem", display: "block" }}>
@@ -458,14 +467,14 @@ export default function CheckoutPage() {
             </div>
 
             {/* Right Column: Order Summary & Placement */}
-            <div style={{ position: "sticky", top: "6rem", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+            <div className="checkout-summary-col">
               {/* Order Items Card */}
               <div className="auth-card-wrap">
                 <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.4rem", color: "#ffffff", marginBottom: "1rem", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", paddingBottom: "0.75rem" }}>
                   Bag Summary ({cart.length} items)
                 </h3>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: "1rem", maxHeight: "280px", overflowY: "auto", paddingRight: "0.5rem", marginBottom: "1.25rem" }}>
+                <div className="checkout-summary-items">
                   {cart.map((item, idx) => {
                     const price = item.variant?.salePrice || item.variant?.price || item.product.priceValue || 0;
                     return (
@@ -475,7 +484,7 @@ export default function CheckoutPage() {
                           alt={item.product.name}
                           style={{ width: "50px", height: "50px", objectFit: "contain", borderRadius: "8px", background: "rgba(255, 255, 255, 0.05)" }}
                         />
-                        <div>
+                        <div style={{ minWidth: 0, overflowWrap: "anywhere" }}>
                           <span style={{ fontSize: "0.62rem", color: "var(--color-gold)", textTransform: "uppercase", fontWeight: 700, display: "block" }}>
                             {item.product.brandName}
                           </span>
@@ -488,7 +497,7 @@ export default function CheckoutPage() {
                             </span>
                           )}
                         </div>
-                        <span style={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "0.9rem", color: "#ffffff" }}>
+                        <span style={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "0.9rem", color: "#ffffff", whiteSpace: "nowrap" }}>
                           {formatINR(price * item.quantity)}
                         </span>
                       </div>
@@ -503,12 +512,12 @@ export default function CheckoutPage() {
                     <span style={{ color: "#ffffff", fontWeight: 700 }}>{formatINR(cartSubtotal)}</span>
                   </div>
 
-                  <div style={{ display: "flex", justifyContent: "space-between", color: "rgba(255, 255, 255, 0.7)", fontSize: "0.85rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", color: "rgba(255, 255, 255, 0.7)", fontSize: "0.85rem" }}>
                     <span>Presentation Box & Courier Transit</span>
                     <span style={{ color: "var(--color-gold)", fontWeight: 700 }}>Complimentary</span>
                   </div>
 
-                  <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "0.85rem", borderTop: "1px solid rgba(255, 255, 255, 0.15)", fontSize: "1.25rem", color: "#ffffff", fontWeight: 800 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", paddingTop: "0.85rem", borderTop: "1px solid rgba(255, 255, 255, 0.15)", fontSize: "clamp(1.05rem, 3.5vw, 1.25rem)", color: "#ffffff", fontWeight: 800 }}>
                     <span>Grand Total</span>
                     <span style={{ fontFamily: "var(--font-heading)", color: "var(--color-gold)" }}>
                       {formatINR(cartSubtotal)}

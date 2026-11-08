@@ -108,9 +108,9 @@ export default function CartPage() {
               </Link>
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: "3rem", alignItems: "start" }}>
+            <div className="cart-layout">
               {/* Left Column: Item List */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem", minWidth: 0 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "1rem", borderBottom: "1px solid rgba(255, 255, 255, 0.08)" }}>
                   <span style={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "14px", color: "#ffffff" }}>
                     {cart.length} {cart.length === 1 ? "Item" : "Items"} in Bag
@@ -137,35 +137,9 @@ export default function CartPage() {
                   const variantKey = item.variant?.id ? `${item.product.id}-${item.variant.id}` : `${item.product.id}-${idx}`;
 
                   return (
-                    <div
-                      key={variantKey}
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "100px 1fr auto",
-                        gap: "1.5rem",
-                        background: "rgba(255, 255, 255, 0.03)",
-                        border: "1px solid rgba(255, 255, 255, 0.08)",
-                        borderRadius: "1.25rem",
-                        padding: "1.25rem",
-                        alignItems: "center",
-                      }}
-                    >
+                    <div key={variantKey} className="cart-item">
                       {/* Image */}
-                      <Link
-                        href={`/product/${item.product.id}`}
-                        style={{
-                          width: "100px",
-                          height: "100px",
-                          borderRadius: "1rem",
-                          background: "radial-gradient(circle at 50% 50%, rgba(35, 30, 24, 0.5) 0%, rgba(10, 10, 12, 0.9) 100%)",
-                          border: "1px solid rgba(255, 255, 255, 0.08)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          padding: "0.5rem",
-                          overflow: "hidden",
-                        }}
-                      >
+                      <Link href={`/product/${item.product.id}`} className="cart-item-thumb">
                         <img
                           src={supabaseImageUrl(item.product.img, 240)}
                           alt={item.product.name}
@@ -174,7 +148,7 @@ export default function CartPage() {
                       </Link>
 
                       {/* Info */}
-                      <div>
+                      <div className="cart-item-info">
                         <span style={{ fontSize: "0.62rem", fontFamily: "var(--font-heading)", letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--color-gold)", fontWeight: 700, display: "block" }}>
                           {item.product.brandName}
                         </span>
@@ -182,7 +156,7 @@ export default function CartPage() {
                           href={`/product/${item.product.id}`}
                           style={{ textDecoration: "none" }}
                         >
-                          <h4 style={{ fontFamily: "var(--font-display)", fontSize: "1.2rem", color: "#ffffff", margin: "0.2rem 0 0.5rem 0", fontWeight: 500 }}>
+                          <h4 className="cart-item-name" style={{ fontFamily: "var(--font-display)", color: "#ffffff", margin: "0.2rem 0 0.5rem 0", fontWeight: 500 }}>
                             {item.product.name}
                           </h4>
                         </Link>
@@ -202,43 +176,40 @@ export default function CartPage() {
                       </div>
 
                       {/* Quantity & Delete */}
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.75rem" }}>
+                      <div className="cart-item-actions">
                         <button
                           type="button"
                           onClick={() => removeFromCart(item.product.id, item.variant?.id)}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            color: "rgba(255, 255, 255, 0.4)",
-                            cursor: "pointer",
-                            fontSize: "1rem",
-                          }}
+                          className="cart-item-remove"
                           title="Remove item"
+                          aria-label={`Remove ${item.product.name}`}
                         >
                           ✕
                         </button>
 
-                        <div style={{ display: "inline-flex", alignItems: "center", background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.15)", borderRadius: "999px", padding: "2px 8px", gap: "8px" }}>
+                        <div className="cart-qty-pill">
                           <button
                             type="button"
                             onClick={() => updateCartQuantity(item.product.id, item.quantity - 1, item.variant?.id)}
-                            style={{ background: "none", border: "none", color: "#ffffff", cursor: "pointer", fontSize: "0.85rem" }}
+                            className="cart-qty-btn"
+                            aria-label="Decrease quantity"
                           >
                             -
                           </button>
-                          <span style={{ fontFamily: "var(--font-heading)", fontSize: "0.78rem", fontWeight: 700, color: "#ffffff" }}>
+                          <span style={{ fontFamily: "var(--font-heading)", fontSize: "0.78rem", fontWeight: 700, color: "#ffffff", minWidth: "1.25rem", textAlign: "center" }}>
                             {item.quantity}
                           </span>
                           <button
                             type="button"
                             onClick={() => updateCartQuantity(item.product.id, item.quantity + 1, item.variant?.id)}
-                            style={{ background: "none", border: "none", color: "#ffffff", cursor: "pointer", fontSize: "0.85rem" }}
+                            className="cart-qty-btn"
+                            aria-label="Increase quantity"
                           >
                             +
                           </button>
                         </div>
 
-                        <span style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: "1.1rem", color: "#ffffff" }}>
+                        <span className="cart-item-total" style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: "1.1rem", color: "#ffffff" }}>
                           {formatINR(itemTotal)}
                         </span>
                       </div>
@@ -248,8 +219,8 @@ export default function CartPage() {
               </div>
 
               {/* Right Column: Order Summary Card */}
-              <div className="pdp-price-card" style={{ position: "sticky", top: "6rem" }}>
-                <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", color: "#ffffff", marginBottom: "1.25rem", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", paddingBottom: "0.75rem" }}>
+              <div className="pdp-price-card cart-summary">
+                <h3 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.25rem, 4vw, 1.5rem)", color: "#ffffff", marginBottom: "1.25rem", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", paddingBottom: "0.75rem" }}>
                   Summary & Concierge Order
                 </h3>
 
@@ -266,7 +237,7 @@ export default function CartPage() {
                     <span>Insured VIP Transit</span>
                     <span style={{ color: "var(--color-gold)", fontWeight: 700 }}>Complimentary</span>
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "1rem", borderTop: "1px solid rgba(255, 255, 255, 0.1)", fontSize: "1.2rem", color: "#ffffff", fontWeight: 800 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", paddingTop: "1rem", borderTop: "1px solid rgba(255, 255, 255, 0.1)", fontSize: "clamp(1.05rem, 3.5vw, 1.2rem)", color: "#ffffff", fontWeight: 800 }}>
                     <span>Estimated Total</span>
                     <span style={{ color: "#ffffff", fontFamily: "var(--font-heading)" }}>{formatINR(cartSubtotal)}</span>
                   </div>
