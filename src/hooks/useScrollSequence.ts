@@ -31,9 +31,9 @@ export function initScrollSequence(): () => void {
     // ─── CONFIGURATION ───
     const LERP_FACTOR = 0.14;          // Fast, silky smooth easing
     const MAX_CONCURRENT_LOADS = isLowMemory ? 2 : 4;
-    const NEAR_WINDOW_BEHIND = isLowMemory ? 2 : 4;
-    const NEAR_WINDOW_AHEAD = isLowMemory ? 6 : 18;
-    const PATH_SAMPLES = isLowMemory ? 4 : 10;
+    const NEAR_WINDOW_BEHIND = isLowMemory ? 1 : 4;
+    const NEAR_WINDOW_AHEAD = isLowMemory ? 2 : 18;
+    const PATH_SAMPLES = isLowMemory ? 2 : 10;
     const MAX_RETAINED_FRAMES = isLowMemory ? 8 : 40;
     const MAX_DPR = isLowMemory ? 1.0 : 1.5;
     const PRELOAD_FRAMES = isLowMemory ? 10 : Infinity;
@@ -50,8 +50,8 @@ export function initScrollSequence(): () => void {
     const cleanups = [];
     const sequences = [];
 
-    // One 1920×1080 set (scripts/optimize-home-frames.cjs) for every screen.
-    const FRAME_BASE = '/home-frames/1080p/';
+    // Desktop uses 1920×1080 frames; mobile uses the 960×540 sampled set.
+    const FRAME_BASE = isLowMemory ? '/home-frames/540p/' : '/home-frames/1080p/';
     const FRAME_WIDTH = 1920;
     const FRAME_HEIGHT = 1080;
 
@@ -345,6 +345,17 @@ export function initScrollSequence(): () => void {
             if (!all) {
                 keep.add(0);
                 keep.add(this.drawnIndex);
+                if (isLowMemory && keep.size > MAX_RETAINED_FRAMES) {
+                    const bounded = new Set([0, this.drawnIndex, Math.round(this.lerpedFrame), Math.round(this.targetFrame)]
+                        .filter(index => index >= 0 && index < this.total));
+                    for (const index of [...keep].sort((a, b) =>
+                        Math.abs(a - this.targetFrame) - Math.abs(b - this.targetFrame))) {
+                        if (bounded.size >= MAX_RETAINED_FRAMES) break;
+                        bounded.add(index);
+                    }
+                    keep.clear();
+                    for (const index of bounded) keep.add(index);
+                }
                 // A decoded frame can arrive just after the moving window passed it.
                 // Keep recent nearby completions as drawable fallbacks instead of
                 // discarding every result while the user scrolls quickly.
@@ -401,7 +412,8 @@ export function initScrollSequence(): () => void {
             return new Promise((resolve) => {
                 const img = new Image();
                 img.decoding = 'async';
-                const frameNum = String(index + 1).padStart(3, '0');
+                const sourceIndex = index * (this.config.frameStep || 1);
+                const frameNum = String(sourceIndex + 1).padStart(3, '0');
                 const framePath = this.config.framePath + frameNum + this.config.frameExt;
                 let usingOriginal = false;
                 let finished = false;
