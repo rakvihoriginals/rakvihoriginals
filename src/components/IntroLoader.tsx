@@ -25,6 +25,19 @@ const MAX_DISPLAY_MS = 20000; // safety ceiling so a slow network never blocks t
 const HOLD_AT_100_MS = 400; // let "100" register before the curtains part
 const EXIT_MS = 1250; // matches the curtain transition (0.25s delay + 0.95s) in globals.css
 
+// On mobile/WebView, use a much shorter max wait so the user isn't stuck
+// behind the loader while the app runs out of memory downloading frames
+const isMobileOrWebView =
+  typeof navigator !== "undefined" &&
+  (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  ) ||
+    /\bwv\b/.test(navigator.userAgent) ||
+    ("ontouchstart" in (typeof window !== "undefined" ? window : {}) &&
+      typeof navigator !== "undefined" &&
+      navigator.maxTouchPoints > 0));
+const MOBILE_MAX_DISPLAY_MS = 6000; // 6s max on mobile instead of 20s
+
 type Phase = "playing" | "exiting" | "done";
 type HeroWindow = Window & { __rkHeroReady?: boolean; __rkHeroProgress?: number };
 
@@ -33,6 +46,12 @@ function isPageReady(): boolean {
   if (document.readyState === "loading") return false;
   if (document.fonts && document.fonts.status !== "loaded") return false;
   const hasHero = !!document.getElementById("hero-canvas");
+  // On mobile/WebView, don't wait for all hero frames — the reduced PRELOAD_FRAMES
+  // value (10 frames) will be satisfied quickly, and we must not block the page
+  // while downloading would cause OOM
+  if (isMobileOrWebView) {
+    return !hasHero || ((window as HeroWindow).__rkHeroProgress ?? 0) >= 0.8;
+  }
   return !hasHero || (window as HeroWindow).__rkHeroReady === true;
 }
 
@@ -107,7 +126,8 @@ export default function IntroLoader() {
     const tick = () => {
       const now = performance.now();
       const elapsed = now - start;
-      if (!ready && (isPageReady() || elapsed >= MAX_DISPLAY_MS)) ready = true;
+      const maxTime = isMobileOrWebView ? MOBILE_MAX_DISPLAY_MS : MAX_DISPLAY_MS;
+      if (!ready && (isPageReady() || elapsed >= maxTime)) ready = true;
 
       const timeRatio = Math.min(elapsed / minTime, 1);
       const target = ready ? timeRatio * 100 : Math.min(timeRatio, heroLoadRatio()) * 95;

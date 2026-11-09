@@ -14,19 +14,35 @@ import { setupFrameAutoScroll } from '@/lib/frameAutoScroll';
 export function initScrollSequence(): () => void {
     'use strict';
 
+    // ─── MOBILE / WEBVIEW DETECTION ───
+    // Android WebViews typically have 150–300 MB heap; desktops have 8+ GB.
+    // Detect constrained environments so we can dial back memory-hungry settings.
+    const isMobileOrWebView = typeof window !== 'undefined' && (
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+        // Android WebView UA contains "wv" or lacks "Chrome/" (custom WebView)
+        /\bwv\b/.test(navigator.userAgent) ||
+        (typeof window.orientation !== 'undefined') ||
+        ('ontouchstart' in window && navigator.maxTouchPoints > 0 && window.innerWidth < 1024)
+    );
+    const isLowMemory = isMobileOrWebView || (
+        typeof navigator !== 'undefined' && (navigator as any).deviceMemory !== undefined && (navigator as any).deviceMemory < 4
+    );
+
     // ─── CONFIGURATION ───
     const LERP_FACTOR = 0.14;          // Fast, silky smooth easing
-    const MAX_CONCURRENT_LOADS = 4;    // Includes decoding, across all sequences
-    const NEAR_WINDOW_BEHIND = 4;      // Frames behind scroll pos
-    const NEAR_WINDOW_AHEAD = 18;      // Frames ahead of scroll pos (~0.75s of autoplay)
-    const PATH_SAMPLES = 10;           // Frames kept between the eased playhead and the scroll target
-    const MAX_RETAINED_FRAMES = 40;    // Includes recent completions during fast manual scrolling
-    const MAX_DPR = 1.5;
-    const PRELOAD_FRAMES = Infinity;   // Hero 1 frames downloaded before the intro loader lifts (all of it, ~23 MB)
-    const MAX_PREFETCHES = 6;          // Background downloads into the HTTP cache (no decoding)
+    const MAX_CONCURRENT_LOADS = isLowMemory ? 2 : 4;
+    const NEAR_WINDOW_BEHIND = isLowMemory ? 2 : 4;
+    const NEAR_WINDOW_AHEAD = isLowMemory ? 6 : 18;
+    const PATH_SAMPLES = isLowMemory ? 4 : 10;
+    const MAX_RETAINED_FRAMES = isLowMemory ? 8 : 40;
+    const MAX_DPR = isLowMemory ? 1.0 : 1.5;
+    const PRELOAD_FRAMES = isLowMemory ? 10 : Infinity;
+    const MAX_PREFETCHES = isLowMemory ? 2 : 6;
     const reducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const saveData = typeof navigator !== 'undefined' && navigator.connection?.saveData === true;
     const START_LOADING_MARGIN = '100% 0px'; // Start preloading 1 viewport height ahead
+    // On mobile, only keep 1 hero active at a time (others show a poster frame)
+    const MOBILE_SINGLE_HERO = isLowMemory;
 
     const abort = new AbortController();
     const listen = (target, type, fn, opts = {}) =>
@@ -107,7 +123,8 @@ export function initScrollSequence(): () => void {
     }
 
     function pumpPrefetch() {
-        if (abort.signal.aborted || reducedMotion || saveData) return;
+        // Skip aggressive prefetch entirely on mobile/WebView to save memory and bandwidth
+        if (abort.signal.aborted || reducedMotion || saveData || isLowMemory) return;
         while (prefetchInflight < MAX_PREFETCHES) {
             const next = nextPrefetch();
             if (!next) return;
@@ -213,6 +230,20 @@ export function initScrollSequence(): () => void {
                 const entry = entries[0];
                 this.isVisible = entry.isIntersecting;
                 if (this.isVisible) {
+                    // On mobile, when a new hero becomes visible, prune all other sequences
+                    // to free memory — only one hero animates at a time
+                    if (MOBILE_SINGLE_HERO) {
+                        for (const seq of sequences) {
+                            if (seq !== this && seq.isVisible) {
+                                seq.isVisible = false;
+                                if (seq.rafId) {
+                                    cancelAnimationFrame(seq.rafId);
+                                    seq.rafId = 0;
+                                }
+                                seq.pruneFrames(true); // Release all decoded frames
+                            }
+                        }
+                    }
                     this.measure();
                     this.onScroll();
                     this.lerpedFrame = this.targetFrame;
@@ -223,6 +254,10 @@ export function initScrollSequence(): () => void {
                     if (this.rafId) {
                         cancelAnimationFrame(this.rafId);
                         this.rafId = 0;
+                    }
+                    // On mobile, aggressively release ALL frames when off-screen
+                    if (isLowMemory) {
+                        this.pruneFrames(true);
                     }
                 }
                 this.pruneFrames();
@@ -313,7 +348,8 @@ export function initScrollSequence(): () => void {
                 // A decoded frame can arrive just after the moving window passed it.
                 // Keep recent nearby completions as drawable fallbacks instead of
                 // discarding every result while the user scrolls quickly.
-                if (this.isVisible && !document.hidden && !reducedMotion) {
+                // On mobile, skip this extra retention to save memory.
+                if (this.isVisible && !document.hidden && !reducedMotion && !isLowMemory) {
                     const recent = this.images
                         .map((image, index) => image ? index : -1)
                         .filter(index => index >= 0 && !keep.has(index))
@@ -342,7 +378,11 @@ export function initScrollSequence(): () => void {
         }
 
         frameUrl(index) {
-            return FRAME_BASE + this.config.framePath + String(index + 1).padStart(3, '0') + this.config.frameExt;
+            // When using frame stepping (mobile), map the reduced index back to the
+            // original frame number. e.g., index 0 → frame 001, index 1 → frame 006, etc.
+            const step = this.config.frameStep || 1;
+            const originalIndex = index * step;
+            return FRAME_BASE + this.config.framePath + String(originalIndex + 1).padStart(3, '0') + this.config.frameExt;
         }
 
         loadFrame(index) {
@@ -666,14 +706,18 @@ export function initScrollSequence(): () => void {
 
     // ─── INIT ───
     function init() {
+        // On mobile, use reduced frame count (every 5th frame) to save memory
+        const mobileFrameCount = isLowMemory ? 60 : 300;
+
         // Initialize the main hero sequence
         new ScrollSequence({
             canvasId: 'hero-canvas',
             sectionId: 'hero',
-            totalFrames: 300,
+            totalFrames: mobileFrameCount,
             framePath: 'hero1-frames-full/ezgif-frame-',
             frameExt: '.webp',
-            isMain: true
+            isMain: true,
+            frameStep: isLowMemory ? 5 : 1, // Skip frames on mobile
         });
 
         // Initialize additional hero sequences
@@ -681,30 +725,33 @@ export function initScrollSequence(): () => void {
             new ScrollSequence({
                 canvasId: 'hero-canvas-2',
                 sectionId: 'hero2',
-                totalFrames: 300,
+                totalFrames: mobileFrameCount,
                 framePath: 'hero2-frames-png/ezgif-frame-',
                 frameExt: '.webp',
-                isMain: false
+                isMain: false,
+                frameStep: isLowMemory ? 5 : 1,
             });
         }
         if (document.getElementById('hero6')) {
             new ScrollSequence({
                 canvasId: 'hero-canvas-6',
                 sectionId: 'hero6',
-                totalFrames: 300,
+                totalFrames: mobileFrameCount,
                 framePath: 'hero6-frames-png/ezgif-frame-',
                 frameExt: '.webp',
-                isMain: false
+                isMain: false,
+                frameStep: isLowMemory ? 5 : 1,
             });
         }
         if (document.getElementById('hero5')) {
             new ScrollSequence({
                 canvasId: 'hero-canvas-5',
                 sectionId: 'hero5',
-                totalFrames: 300,
+                totalFrames: mobileFrameCount,
                 framePath: 'hero5-frames-png/ezgif-frame-',
                 frameExt: '.webp',
-                isMain: false
+                isMain: false,
+                frameStep: isLowMemory ? 5 : 1,
             });
         }
 
