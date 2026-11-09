@@ -3,6 +3,10 @@ type FrameSequence = {
     containerTop: number;
     effectiveHeight: number;
     total: number;
+    config?: {
+        frameStep?: number;
+        totalFrames?: number;
+    };
     measure: () => void;
 };
 
@@ -81,8 +85,11 @@ export function setupFrameAutoScroll(sequences: FrameSequence[]): () => void {
                 if (document.hidden || end <= start || (nextDirection > 0 && position >= end) || (nextDirection < 0 && position <= start)) return;
                 active = sequence;
                 direction = nextDirection;
-                // 24 source frames per second, independent of screen refresh rate.
-                speed = (end - start) * 24 / Math.max(1, sequence.total - 1);
+                // Account for mobile frame stepping (e.g. 60 frames * step 5 = 300 source frames)
+                // so playback takes a calm, cinematic ~12.5s on all screens instead of racing through.
+                const frameStep = sequence.config?.frameStep ?? 1;
+                const sourceFrames = Math.max(sequence.total * frameStep, sequence.total);
+                speed = (end - start) * 24 / Math.max(1, sourceFrames - 1);
                 expectedScroll = position;
                 previousTime = performance.now();
                 updateControls();
