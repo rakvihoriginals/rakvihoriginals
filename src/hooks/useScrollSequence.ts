@@ -24,23 +24,30 @@ export function initScrollSequence(): () => void {
         (typeof window.orientation !== 'undefined') ||
         ('ontouchstart' in window && navigator.maxTouchPoints > 0 && window.innerWidth < 1024)
     );
+
+    // Detect low-spec / budget devices (e.g. <=3GB RAM or <=4 CPU cores on mobile)
+    const isUltraLowEnd = typeof navigator !== 'undefined' && (
+        (Boolean((navigator as any).deviceMemory) && (navigator as any).deviceMemory <= 3) ||
+        (Boolean(navigator.hardwareConcurrency) && navigator.hardwareConcurrency <= 4 && isMobileOrWebView)
+    );
+
     const isLowMemory = isMobileOrWebView || (
         typeof navigator !== 'undefined' && (navigator as any).deviceMemory !== undefined && (navigator as any).deviceMemory < 4
     );
 
     // ─── CONFIGURATION ───
     const LERP_FACTOR = 0.14;          // Fast, silky smooth easing
-    const MAX_CONCURRENT_LOADS = isLowMemory ? 2 : 4;
-    const NEAR_WINDOW_BEHIND = isLowMemory ? 1 : 4;
-    const NEAR_WINDOW_AHEAD = isLowMemory ? 2 : 18;
-    const PATH_SAMPLES = isLowMemory ? 2 : 10;
-    const MAX_RETAINED_FRAMES = isLowMemory ? 8 : 40;
+    const MAX_CONCURRENT_LOADS = isUltraLowEnd ? 1 : (isLowMemory ? 2 : 4);
+    const NEAR_WINDOW_BEHIND = isUltraLowEnd ? 1 : (isLowMemory ? 2 : 4);
+    const NEAR_WINDOW_AHEAD = isUltraLowEnd ? 3 : (isLowMemory ? 6 : 18);
+    const PATH_SAMPLES = isUltraLowEnd ? 2 : (isLowMemory ? 4 : 10);
+    const MAX_RETAINED_FRAMES = isUltraLowEnd ? 3 : (isLowMemory ? 8 : 40);
     const MAX_DPR = isLowMemory ? 1.0 : 1.5;
-    const PRELOAD_FRAMES = isLowMemory ? 10 : Infinity;
-    const MAX_PREFETCHES = isLowMemory ? 2 : 6;
+    const PRELOAD_FRAMES = isUltraLowEnd ? 4 : (isLowMemory ? 10 : Infinity);
+    const MAX_PREFETCHES = isLowMemory ? 0 : 6;
     const reducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const saveData = typeof navigator !== 'undefined' && navigator.connection?.saveData === true;
-    const START_LOADING_MARGIN = '100% 0px'; // Start preloading 1 viewport height ahead
+    const START_LOADING_MARGIN = isUltraLowEnd ? '20% 0px' : '100% 0px'; // Closer load margin for low-end
     // On mobile, only keep 1 hero active at a time (others show a poster frame)
     const MOBILE_SINGLE_HERO = isLowMemory;
 
@@ -50,8 +57,8 @@ export function initScrollSequence(): () => void {
     const cleanups = [];
     const sequences = [];
 
-    // Desktop uses 1920×1080 frames; mobile uses the 960×540 sampled set.
-    const FRAME_BASE = isLowMemory ? '/home-frames/540p/' : '/home-frames/1080p/';
+    // One 1920×1080 set (scripts/optimize-home-frames.cjs) for every screen.
+    const FRAME_BASE = '/home-frames/1080p/';
     const FRAME_WIDTH = 1920;
     const FRAME_HEIGHT = 1080;
 
@@ -313,8 +320,8 @@ export function initScrollSequence(): () => void {
             this.canvas.style.width = width + 'px';
             this.canvas.style.height = height + 'px';
             this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-            // Resizing resets context state; the default 'low' smoothing aliases when downscaling.
-            this.ctx.imageSmoothingQuality = 'high';
+            // Resizing resets context state; use 'low' smoothing on budget GPUs for maximum performance
+            this.ctx.imageSmoothingQuality = isUltraLowEnd ? 'low' : 'high';
 
             this.canvasWidth = width;
             this.canvasHeight = height;
@@ -345,17 +352,6 @@ export function initScrollSequence(): () => void {
             if (!all) {
                 keep.add(0);
                 keep.add(this.drawnIndex);
-                if (isLowMemory && keep.size > MAX_RETAINED_FRAMES) {
-                    const bounded = new Set([0, this.drawnIndex, Math.round(this.lerpedFrame), Math.round(this.targetFrame)]
-                        .filter(index => index >= 0 && index < this.total));
-                    for (const index of [...keep].sort((a, b) =>
-                        Math.abs(a - this.targetFrame) - Math.abs(b - this.targetFrame))) {
-                        if (bounded.size >= MAX_RETAINED_FRAMES) break;
-                        bounded.add(index);
-                    }
-                    keep.clear();
-                    for (const index of bounded) keep.add(index);
-                }
                 // A decoded frame can arrive just after the moving window passed it.
                 // Keep recent nearby completions as drawable fallbacks instead of
                 // discarding every result while the user scrolls quickly.
@@ -412,8 +408,7 @@ export function initScrollSequence(): () => void {
             return new Promise((resolve) => {
                 const img = new Image();
                 img.decoding = 'async';
-                const sourceIndex = index * (this.config.frameStep || 1);
-                const frameNum = String(sourceIndex + 1).padStart(3, '0');
+                const frameNum = String(index + 1).padStart(3, '0');
                 const framePath = this.config.framePath + frameNum + this.config.frameExt;
                 let usingOriginal = false;
                 let finished = false;
@@ -719,18 +714,22 @@ export function initScrollSequence(): () => void {
 
     // ─── INIT ───
     function init() {
-        // On mobile, use reduced frame count (every 5th frame) to save memory
-        const mobileFrameCount = isLowMemory ? 60 : 300;
+        // Adaptive frame counts:
+        // - Desktop: 300 frames, step 1
+        // - Standard Mobile (e.g. iPhone, modern Android): 60 frames, step 5
+        // - Budget / Low-End Mobile (<=3GB RAM, <=4 cores): 30 frames, step 10
+        const frameCount = isUltraLowEnd ? 30 : (isLowMemory ? 60 : 300);
+        const frameStep = isUltraLowEnd ? 10 : (isLowMemory ? 5 : 1);
 
         // Initialize the main hero sequence
         new ScrollSequence({
             canvasId: 'hero-canvas',
             sectionId: 'hero',
-            totalFrames: mobileFrameCount,
+            totalFrames: frameCount,
             framePath: 'hero1-frames-full/ezgif-frame-',
             frameExt: '.webp',
             isMain: true,
-            frameStep: isLowMemory ? 5 : 1, // Skip frames on mobile
+            frameStep: frameStep,
         });
 
         // Initialize additional hero sequences
@@ -738,33 +737,33 @@ export function initScrollSequence(): () => void {
             new ScrollSequence({
                 canvasId: 'hero-canvas-2',
                 sectionId: 'hero2',
-                totalFrames: mobileFrameCount,
+                totalFrames: frameCount,
                 framePath: 'hero2-frames-png/ezgif-frame-',
                 frameExt: '.webp',
                 isMain: false,
-                frameStep: isLowMemory ? 5 : 1,
+                frameStep: frameStep,
             });
         }
         if (document.getElementById('hero6')) {
             new ScrollSequence({
                 canvasId: 'hero-canvas-6',
                 sectionId: 'hero6',
-                totalFrames: mobileFrameCount,
+                totalFrames: frameCount,
                 framePath: 'hero6-frames-png/ezgif-frame-',
                 frameExt: '.webp',
                 isMain: false,
-                frameStep: isLowMemory ? 5 : 1,
+                frameStep: frameStep,
             });
         }
         if (document.getElementById('hero5')) {
             new ScrollSequence({
                 canvasId: 'hero-canvas-5',
                 sectionId: 'hero5',
-                totalFrames: mobileFrameCount,
+                totalFrames: frameCount,
                 framePath: 'hero5-frames-png/ezgif-frame-',
                 frameExt: '.webp',
                 isMain: false,
-                frameStep: isLowMemory ? 5 : 1,
+                frameStep: frameStep,
             });
         }
 
@@ -866,8 +865,8 @@ export function initScrollSequence(): () => void {
             }
         }
 
-        // Floaters parallax
-        if (floaters.length > 0) {
+        // Floaters parallax (run on desktop/tablets only to avoid layout thrashing on mobile)
+        if (floaters.length > 0 && window.innerWidth > 768) {
             const vh = window.innerHeight;
             const viewportCenter = vh / 2;
             for (const el of floaters) {
