@@ -1406,6 +1406,13 @@ ul {
     pointer-events: none;
 }
 
+@media (max-width: 768px) {
+    .hero-gradient-overlay {
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0.55) 38%, transparent 70%),
+                    linear-gradient(to right, rgba(0, 0, 0, 0.5) 0%, transparent 100%);
+    }
+}
+
 /* Hero Text Overlays — Clean luxury typography & dynamic positioning */
 .hero-text-overlay {
     position: absolute;
@@ -1467,6 +1474,22 @@ ul {
     line-height: 1.55 !important;
     color: rgba(255, 255, 255, 0.75) !important;
     text-align: left !important;
+}
+
+@media (max-width: 768px) {
+    .text-first .hero-desc,
+    #hero-text-1 .hero-desc,
+    #hero2-text-1 .hero-desc,
+    #hero3-text-1 .hero-desc,
+    #hero4-text-1 .hero-desc,
+    #hero5-text-1 .hero-desc,
+    #hero6-text-1 .hero-desc {
+        color: rgba(255, 255, 255, 0.92) !important;
+        text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
+    }
+    .hero-title-bold {
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
+    }
 }
 
 /* ── Final Slide (text-last) across all hero sections ── */

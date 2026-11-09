@@ -612,21 +612,22 @@ export function initScrollSequence(): () => void {
                     fadeInFrames = 0;
                     if (this.config.isMain) {
                         endFrame = 0.10 * last;
-                        fadeOutFrames = 12;
+                        // Proportional fade-out frames so text starts at full 100% opacity on all devices
+                        fadeOutFrames = Math.max(1, Math.min(endFrame * 0.4, 0.04 * last));
                     } else {
                         endFrame = 0.12 * last;
-                        fadeOutFrames = 8;
+                        fadeOutFrames = Math.max(1, Math.min(endFrame * 0.4, 0.03 * last));
                     }
                 } else if (isLast) {
                     startFrame = (this.config.isMain ? 0.86 : 0.80) * last;
                     endFrame = this.total + 10;
                     fadeOutFrames = 0;
-                    fadeInFrames = 8;
+                    fadeInFrames = Math.max(1, 0.03 * last);
                 } else if (el.dataset.start && el.dataset.end) {
                     startFrame = parseFloat(el.dataset.start) * last;
                     endFrame = parseFloat(el.dataset.end) * last;
-                    fadeInFrames = 0.03 * last;
-                    fadeOutFrames = 0.03 * last;
+                    fadeInFrames = Math.max(1, 0.03 * last);
+                    fadeOutFrames = Math.max(1, 0.03 * last);
                 }
 
                 return {
